@@ -4,28 +4,22 @@
 
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
-load 'helpers/mocks'
+load 'libs/bats-mock/stub'
 
 TICK="[✓]"
 CROSS="[✗]"
 
-_reset_selinux_test_state() {
-    rm -f /usr/local/bin/getenforce /var/log/getenforce
-}
-
-setup() {
-    _reset_selinux_test_state
-}
+setup() { :; }
 
 teardown() {
-    _reset_selinux_test_state
+    unstub getenforce 2>/dev/null || true
 }
 
 _mock_selinux_config() {
     local state="$1"   # enforcing, permissive, or disabled
     local capitalized
     capitalized=$(echo "${state}" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
-    mock_command getenforce "*" "$capitalized" "0"
+    stub getenforce ": echo '${capitalized}'"
     mkdir -p /etc/selinux
     echo "SELINUX=${state}" > /etc/selinux/config
 }

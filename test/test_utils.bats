@@ -3,33 +3,32 @@
 
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
-
-_reset_utils_test_state() {
-    rm -f ./testoutput
-}
+load 'libs/bats-file/load'
 
 setup() {
-    _reset_utils_test_state
+    TEST_TEMP_DIR="$(temp_make)"
 }
 
 teardown() {
-    _reset_utils_test_state
+    temp_del "${TEST_TEMP_DIR}"
 }
 
 # ---------------------------------------------------------------------------
 
 @test "addOrEditKeyValPair adds and replaces key-value pairs correctly" {
+    local outfile="${TEST_TEMP_DIR}/testoutput"
     bash -c "
         source /opt/pihole/utils.sh
-        addOrEditKeyValPair './testoutput' 'KEY_ONE' 'value1'
-        addOrEditKeyValPair './testoutput' 'KEY_TWO' 'value2'
-        addOrEditKeyValPair './testoutput' 'KEY_ONE' 'value3'
-        addOrEditKeyValPair './testoutput' 'KEY_FOUR' 'value4'
+        addOrEditKeyValPair '${outfile}' 'KEY_ONE' 'value1'
+        addOrEditKeyValPair '${outfile}' 'KEY_TWO' 'value2'
+        addOrEditKeyValPair '${outfile}' 'KEY_ONE' 'value3'
+        addOrEditKeyValPair '${outfile}' 'KEY_FOUR' 'value4'
     "
-    run bash -c "cat ./testoutput"
-    assert_output "KEY_ONE=value3
-KEY_TWO=value2
-KEY_FOUR=value4"
+    assert_file_exists "${outfile}"
+    assert_file_contains "${outfile}" "KEY_ONE=value3"
+    assert_file_contains "${outfile}" "KEY_TWO=value2"
+    assert_file_contains "${outfile}" "KEY_FOUR=value4"
+    assert_file_not_contains "${outfile}" "KEY_ONE=value1"
 }
 
 @test "getFTLPID returns -1 when FTL is not running" {

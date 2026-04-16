@@ -3,23 +3,18 @@
 
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
-load 'helpers/mocks'
+load 'libs/bats-mock/stub'
 
 TICK="[✓]"
 INFO="[i]"
 
 FTL_BRANCH="development"
 
-_reset_ftl_test_state() {
-    rm -f /usr/local/bin/uname /usr/local/bin/readelf /var/log/uname /var/log/readelf
-}
-
-setup() {
-    _reset_ftl_test_state
-}
+setup() { :; }
 
 teardown() {
-    _reset_ftl_test_state
+    unstub uname   2>/dev/null || true
+    unstub readelf 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
@@ -29,11 +24,13 @@ teardown() {
 _test_ftl_arch() {
     local arch="$1" detected_string="$2" supported="$3"
 
-    mock_command uname "-m" "$arch" "0"
-    mock_command_2 readelf \
-        "-A /bin/sh"      "Tag_CPU_arch: ${arch}" "0" \
-        "-A /usr/bin/sh"  "Tag_CPU_arch: ${arch}" "0" \
-        "-A /usr/sbin/sh" "Tag_CPU_arch: ${arch}" "0"
+    # Resolve the sh binary path the installer will interrogate so we stub
+    # exactly the call that will be made, rather than all possible paths.
+    local sh_path
+    sh_path="$(command -v sh)"
+
+    stub uname "-m : echo '${arch}'"
+    stub readelf "-A ${sh_path} : echo 'Tag_CPU_arch: ${arch}'"
     echo "${FTL_BRANCH}" > /etc/pihole/ftlbranch
 
     run bash -c "
@@ -45,13 +42,13 @@ _test_ftl_arch() {
         FTLdetect \"\${binary}\" \"\${theRest}\"
     "
 
-    if [[ "$supported" == "true" ]]; then
+    if [[ "${supported}" == "true" ]]; then
         assert_output --partial "${INFO} FTL Checks..."
         assert_output --partial "${TICK} Detected ${detected_string} architecture"
 
-        if [[ "$output" != *"Downloading and Installing FTL"* && "$output" != *"Local binary up-to-date. No need to download!"* ]]; then
+        if [[ "${output}" != *"Downloading and Installing FTL"* && "${output}" != *"Local binary up-to-date. No need to download!"* ]]; then
             echo "Expected either download or up-to-date path, got:" >&2
-            echo "$output" >&2
+            echo "${output}" >&2
             false
         fi
     else

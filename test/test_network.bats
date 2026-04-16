@@ -3,18 +3,12 @@
 
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
-load 'helpers/mocks'
+load 'libs/bats-mock/stub'
 
-_reset_network_test_state() {
-    rm -f /usr/local/bin/ip /var/log/ip
-}
-
-setup() {
-    _reset_network_test_state
-}
+setup() { :; }
 
 teardown() {
-    _reset_network_test_state
+    unstub ip 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
@@ -22,8 +16,7 @@ teardown() {
 # ---------------------------------------------------------------------------
 
 @test "IPv6 link-local only: blocking disabled" {
-    mock_command_2 ip \
-        "-6 address" "inet6 fe80::d210:52fa:fe00:7ad7/64 scope link" "0"
+    stub ip "-6 address : echo 'inet6 fe80::d210:52fa:fe00:7ad7/64 scope link'"
     run bash -c "
         source /opt/pihole/basic-install.sh
         find_IPv6_information
@@ -32,8 +25,7 @@ teardown() {
 }
 
 @test "IPv6 ULA only: blocking enabled" {
-    mock_command_2 ip \
-        "-6 address" "inet6 fda2:2001:5555:0:d210:52fa:fe00:7ad7/64 scope global" "0"
+    stub ip "-6 address : echo 'inet6 fda2:2001:5555:0:d210:52fa:fe00:7ad7/64 scope global'"
     run bash -c "
         source /opt/pihole/basic-install.sh
         find_IPv6_information
@@ -42,8 +34,7 @@ teardown() {
 }
 
 @test "IPv6 GUA only: blocking enabled" {
-    mock_command_2 ip \
-        "-6 address" "inet6 2003:12:1e43:301:d210:52fa:fe00:7ad7/64 scope global" "0"
+    stub ip "-6 address : echo 'inet6 2003:12:1e43:301:d210:52fa:fe00:7ad7/64 scope global'"
     run bash -c "
         source /opt/pihole/basic-install.sh
         find_IPv6_information
@@ -52,9 +43,7 @@ teardown() {
 }
 
 @test "IPv6 GUA + ULA: ULA takes precedence" {
-    mock_command_2 ip \
-        "-6 address" "inet6 2003:12:1e43:301:d210:52fa:fe00:7ad7/64 scope global
-inet6 fda2:2001:5555:0:d210:52fa:fe00:7ad7/64 scope global" "0"
+    stub ip "-6 address : printf 'inet6 2003:12:1e43:301:d210:52fa:fe00:7ad7/64 scope global\ninet6 fda2:2001:5555:0:d210:52fa:fe00:7ad7/64 scope global\n'"
     run bash -c "
         source /opt/pihole/basic-install.sh
         find_IPv6_information
@@ -63,9 +52,7 @@ inet6 fda2:2001:5555:0:d210:52fa:fe00:7ad7/64 scope global" "0"
 }
 
 @test "IPv6 ULA + GUA: ULA takes precedence" {
-    mock_command_2 ip \
-        "-6 address" "inet6 fda2:2001:5555:0:d210:52fa:fe00:7ad7/64 scope global
-inet6 2003:12:1e43:301:d210:52fa:fe00:7ad7/64 scope global" "0"
+    stub ip "-6 address : printf 'inet6 fda2:2001:5555:0:d210:52fa:fe00:7ad7/64 scope global\ninet6 2003:12:1e43:301:d210:52fa:fe00:7ad7/64 scope global\n'"
     run bash -c "
         source /opt/pihole/basic-install.sh
         find_IPv6_information
