@@ -5,12 +5,6 @@ load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
 load 'libs/bats-mock/stub'
 
-setup() { :; }
-
-teardown() {
-    unstub ip 2>/dev/null || true
-}
-
 # ---------------------------------------------------------------------------
 # IPv6 detection
 # ---------------------------------------------------------------------------
@@ -22,6 +16,8 @@ teardown() {
         find_IPv6_information
     "
     assert_output --partial "Unable to find IPv6 ULA/GUA address"
+
+    unstub ip 2>/dev/null || true
 }
 
 @test "IPv6 ULA only: blocking enabled" {
@@ -31,6 +27,8 @@ teardown() {
         find_IPv6_information
     "
     assert_output --partial "Found IPv6 ULA address"
+
+    unstub ip 2>/dev/null || true
 }
 
 @test "IPv6 GUA only: blocking enabled" {
@@ -40,6 +38,8 @@ teardown() {
         find_IPv6_information
     "
     assert_output --partial "Found IPv6 GUA address"
+
+    unstub ip 2>/dev/null || true
 }
 
 @test "IPv6 GUA + ULA: ULA takes precedence" {
@@ -49,6 +49,8 @@ teardown() {
         find_IPv6_information
     "
     assert_output --partial "Found IPv6 ULA address"
+
+    unstub ip 2>/dev/null || true
 }
 
 @test "IPv6 ULA + GUA: ULA takes precedence" {
@@ -58,6 +60,8 @@ teardown() {
         find_IPv6_information
     "
     assert_output --partial "Found IPv6 ULA address"
+
+    unstub ip 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------

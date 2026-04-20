@@ -10,13 +10,6 @@ INFO="[i]"
 
 FTL_BRANCH="development"
 
-setup() { :; }
-
-teardown() {
-    unstub uname   2>/dev/null || true
-    unstub readelf 2>/dev/null || true
-}
-
 # ---------------------------------------------------------------------------
 # Installer FTL architecture detection — one @test per arch
 # ---------------------------------------------------------------------------
@@ -54,6 +47,9 @@ _test_ftl_arch() {
     else
         assert_output --partial "Not able to detect architecture (unknown: ${detected_string})"
     fi
+
+    unstub uname   2>/dev/null || true
+    unstub readelf 2>/dev/null || true
 }
 
 @test "installer detects aarch64 architecture for FTL" {

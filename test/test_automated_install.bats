@@ -9,23 +9,6 @@ TICK="[✓]"
 CROSS="[✗]"
 INFO="[i]"
 
-_reset_automated_install_test_state() {
-    unstub apt-get 2>/dev/null || true
-
-    # Restore any package managers disabled by tests.
-    [[ -e /usr/bin/apt-get.disabled ]] && mv -f /usr/bin/apt-get.disabled /usr/bin/apt-get || true
-    [[ -e /usr/bin/rpm.disabled ]]     && mv -f /usr/bin/rpm.disabled /usr/bin/rpm         || true
-    [[ -e /sbin/apk.disabled ]]        && mv -f /sbin/apk.disabled /sbin/apk               || true
-}
-
-setup() {
-    _reset_automated_install_test_state
-}
-
-teardown() {
-    _reset_automated_install_test_state
-}
-
 @test "installer exits when no supported package manager found" {
     [[ -e /usr/bin/apt-get ]] && mv /usr/bin/apt-get /usr/bin/apt-get.disabled
     [[ -e /usr/bin/rpm ]]     && mv /usr/bin/rpm /usr/bin/rpm.disabled
@@ -38,6 +21,11 @@ teardown() {
 
     assert_output --partial "${CROSS} No supported package manager found"
     assert_failure
+
+    # Restore package managers for other tests
+    [[ -e /usr/bin/apt-get.disabled ]] && mv -f /usr/bin/apt-get.disabled /usr/bin/apt-get || true
+    [[ -e /usr/bin/rpm.disabled ]]     && mv -f /usr/bin/rpm.disabled /usr/bin/rpm         || true
+    [[ -e /sbin/apk.disabled ]]        && mv -f /sbin/apk.disabled /sbin/apk               || true
 }
 
 @test "installer continues when SELinux config file does not exist" {
@@ -70,6 +58,8 @@ teardown() {
     "
     assert_output --partial "${CROSS} Update local cache of available packages"
     assert_output --partial "Error: Unable to update package cache."
+
+    unstub apt-get 2>/dev/null || true
 }
 
 @test "OS can install required Pi-hole dependency packages" {

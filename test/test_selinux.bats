@@ -9,12 +9,6 @@ load 'libs/bats-mock/stub'
 TICK="[✓]"
 CROSS="[✗]"
 
-setup() { :; }
-
-teardown() {
-    unstub getenforce 2>/dev/null || true
-}
-
 _mock_selinux_config() {
     local state="$1"   # enforcing, permissive, or disabled
     local capitalized
@@ -33,6 +27,8 @@ _mock_selinux_config() {
     assert_output --partial "${CROSS} Current SELinux: enforcing"
     assert_output --partial "SELinux Enforcing detected, exiting installer"
     assert_failure
+
+    unstub getenforce 2>/dev/null || true
 }
 
 @test "SELinux permissive: installer continues" {
@@ -43,6 +39,8 @@ _mock_selinux_config() {
     "
     assert_output --partial "${TICK} Current SELinux: permissive"
     assert_success
+
+    unstub getenforce 2>/dev/null || true
 }
 
 @test "SELinux disabled: installer continues" {
@@ -53,4 +51,6 @@ _mock_selinux_config() {
     "
     assert_output --partial "${TICK} Current SELinux: disabled"
     assert_success
+
+    unstub getenforce 2>/dev/null || true
 }

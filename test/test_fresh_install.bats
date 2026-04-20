@@ -51,7 +51,6 @@ EOF
         export TERM=xterm
         export DEBIAN_FRONTEND=noninteractive
         umask 0027
-        runUnattended=true
         source /opt/pihole/basic-install.sh > /dev/null
         runUnattended=true
         main
