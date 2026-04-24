@@ -796,47 +796,48 @@ gravity_DownloadBlocklistFromUrl() {
     # a generic message is returned.
     curlOutput=$(curl --connect-timeout ${curl_connect_timeout} -s --fail -L ${compression:+${compression}} ${customUpstreamResolver:+${customUpstreamResolver}} "${modifiedOptions[@]}" -w "${curlOutputFormat}" "${url}" -o "${listCurlBuffer}")
     curlExitCode="$?"
+
+
+    # Retrieve http_code and errormsg values, returned by curl command
+    IFS=";" read -r httpCode curlErrorMsg <<<"$curlOutput"
+
+    case $url in
+    # Did we "download" a local file?
+    "file"*)
+      if [[ -s "${listCurlBuffer}" ]]; then
+        echo -e "${OVER}  ${TICK} ${str} Retrieval successful"
+        success=true
+      else
+        echo -e "${OVER}  ${CROSS} ${str} Retrieval failed / empty list"
+      fi
+      ;;
+    # Did we "download" a remote file?
+    *)
+      # Use the exit code to determine if curl was successful or not.
+      # Use HTTP code only to select the correct error message.
+      if [[ "${curlExitCode}" == "0" ]]; then
+        case "${httpCode}" in
+          "200") echo -e "${OVER}  ${TICK} ${str} Retrieval successful" ;;
+          "304") echo -e "${OVER}  ${TICK} ${str} No changes detected"  ;;
+          *) echo -e "${OVER}  ${TICK} ${str} Success (http_code=${COL_CYAN}${httpCode}${COL_NC})"  ;;
+        esac
+        success=true
+      else
+        case "${httpCode}" in
+          "403") echo -e "${OVER}  ${CROSS} ${str} Forbidden" ;;
+          "404") echo -e "${OVER}  ${CROSS} ${str} Not found" ;;
+          "408") echo -e "${OVER}  ${CROSS} ${str} Time-out" ;;
+          "451") echo -e "${OVER}  ${CROSS} ${str} Unavailable For Legal Reasons" ;;
+          "500") echo -e "${OVER}  ${CROSS} ${str} Internal Server Error" ;;
+          "504") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Gateway)" ;;
+          "521") echo -e "${OVER}  ${CROSS} ${str} Web Server Is Down (Cloudflare)" ;;
+          "522") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Cloudflare)" ;;
+          *) echo -e "${OVER}  ${CROSS} ${str} Retrieval failed (exit_code=${COL_CYAN}${curlExitCode}${COL_NC} Msg: ${COL_CYAN}${curlErrorMsg}${COL_NC})" ;;
+        esac
+      fi
+      ;;
+    esac
   fi
-
-  # Retrieve http_code and errormsg values, returned by curl command
-  IFS=";" read -r httpCode curlErrorMsg <<<"$curlOutput"
-
-  case $url in
-  # Did we "download" a local file?
-  "file"*)
-    if [[ -s "${listCurlBuffer}" ]]; then
-      echo -e "${OVER}  ${TICK} ${str} Retrieval successful"
-      success=true
-    else
-      echo -e "${OVER}  ${CROSS} ${str} Retrieval failed / empty list"
-    fi
-    ;;
-  # Did we "download" a remote file?
-  *)
-    # Use the exit code to determine if curl was successful or not.
-    # Use HTTP code only to select the correct error message.
-    if [[ "${curlExitCode}" == "0" ]]; then
-      case "${httpCode}" in
-        "200") echo -e "${OVER}  ${TICK} ${str} Retrieval successful" ;;
-        "304") echo -e "${OVER}  ${TICK} ${str} No changes detected"  ;;
-        *) echo -e "${OVER}  ${TICK} ${str} Success (http_code=${COL_CYAN}${httpCode}${COL_NC})"  ;;
-      esac
-      success=true
-    else
-      case "${httpCode}" in
-        "403") echo -e "${OVER}  ${CROSS} ${str} Forbidden" ;;
-        "404") echo -e "${OVER}  ${CROSS} ${str} Not found" ;;
-        "408") echo -e "${OVER}  ${CROSS} ${str} Time-out" ;;
-        "451") echo -e "${OVER}  ${CROSS} ${str} Unavailable For Legal Reasons" ;;
-        "500") echo -e "${OVER}  ${CROSS} ${str} Internal Server Error" ;;
-        "504") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Gateway)" ;;
-        "521") echo -e "${OVER}  ${CROSS} ${str} Web Server Is Down (Cloudflare)" ;;
-        "522") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Cloudflare)" ;;
-        *) echo -e "${OVER}  ${CROSS} ${str} Retrieval failed (exit_code=${COL_CYAN}${curlExitCode}${COL_NC} Msg: ${COL_CYAN}${curlErrorMsg}${COL_NC})" ;;
-      esac
-    fi
-    ;;
-  esac
 
   local done="false"
   # Determine if the blocklist was downloaded and saved correctly
