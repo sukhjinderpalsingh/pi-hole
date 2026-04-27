@@ -772,19 +772,22 @@ gravity_DownloadBlocklistFromUrl() {
     # Define the generic error message
     curlOutputFormat='%{http_code};No message available. Non supported curl version.'
 
-    # Check if the installed curl version supports the "-w %{errormsg}" option (available as of curl 7.75.0)
-    # (https://github.com/pi-hole/pi-hole/pull/6605#discussion_r3112153347)
-    # First we get the current curl version.
+    # Get the current installed curl version.
     curlVersion=$(curl --version | awk '{print $2;exit}')
-    # After that, we pipe the current version along with the string '7.75' (the minimum version supporting the required option.)
-    # Then we sort the list in natural (version) order and return the first item which will be the lowest version seen.
-    # If it is "7.75" then the current version is greater than or equal to "7.75.0".
-    # Compatibility notes:
-    #   Busybox doesn't support some long flags:
-    #   - "sort -V" is short form of "sort --version-sort"
-    # Note: "sed '1q'" returns only the first line (like "head -n1"), but it doesn't generate an error message.
+
+    # Check if the installed curl version supports the "-w %{errormsg}" option.
+    # The minimum curl version supporting this option is 7.75.0.
+    # (https://github.com/pi-hole/pi-hole/pull/6605#discussion_r3112153347)
+    #
+    # We use "awk" to compare versions by subtracting 7.75 from the version number.
+    # If the result is greater than or equal to zero, the option is supported.
     # (see https://github.com/pi-hole/pi-hole/issues/6615)
-    if [[ "$(printf '%s\n' "${curlVersion}" "7.75" | sort -V | sed '1q')" == 7.75 ]]; then
+    #
+    # Notes:
+    # - Use parameter expansion to get only Major and Minor version parts (containing only one dot).
+    # - The comparison result will be true or false. We use it as exit code.
+    # - awk considers "true=1". We negate the comparison to exit with "0" when a desired version is found.
+    if echo "${curlVersion%.*}" | awk '{exit !($1 - 7.75 >= 0)}'; then
         # Use the error message returned by curl
         curlOutputFormat='%{http_code};%{errormsg}'
     fi
