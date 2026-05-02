@@ -965,6 +965,8 @@ database_recovery() {
   local result
   local str="Checking integrity of existing gravity database (this can take a while)"
   local option="${1}"
+  local recoverySQL="${gravityDBfile}.recovery.sql"
+  trap 'rm -f "${recoverySQL}"' RETURN
   echo -ne "  ${INFO} ${str}..."
   result="$(pihole-FTL sqlite3 -ni "${gravityDBfile}" "PRAGMA integrity_check" 2>&1)"
 
@@ -993,17 +995,26 @@ database_recovery() {
   echo -ne "  ${INFO} ${str}..."
   # We have to remove any possibly existing recovery database or this will fail
   rm -f "${gravityDBfile}.recovered" >/dev/null 2>&1
-  if result="$(pihole-FTL sqlite3 -ni "${gravityDBfile}" ".recover" | pihole-FTL sqlite3 -ni "${gravityDBfile}.recovered" 2>&1)"; then
-    echo -e "${OVER}  ${TICK} ${str} - success"
-    mv "${gravityDBfile}" "${gravityDBfile}.old"
-    mv "${gravityDBfile}.recovered" "${gravityDBfile}"
-    echo -ne " ${INFO} ${gravityDBfile} has been recovered"
-    echo -ne " ${INFO} The old ${gravityDBfile} has been moved to ${gravityDBfile}.old"
+  # Stage .recover output to a temp file so each command's exit status can
+  # be checked independently. Piping would hide a failing .recover because
+  # bash reports the RHS exit status for the whole pipe.
+  if pihole-FTL sqlite3 -ni "${gravityDBfile}" ".recover" > "${recoverySQL}"; then
+    if result="$(pihole-FTL sqlite3 -ni "${gravityDBfile}.recovered" < "${recoverySQL}" 2>&1)"; then
+      echo -e "${OVER}  ${TICK} ${str} - success"
+      mv "${gravityDBfile}" "${gravityDBfile}.old"
+      mv "${gravityDBfile}.recovered" "${gravityDBfile}"
+      echo -ne " ${INFO} ${gravityDBfile} has been recovered"
+      echo -ne " ${INFO} The old ${gravityDBfile} has been moved to ${gravityDBfile}.old"
+    else
+      echo -e "${OVER}  ${CROSS} ${str} - the following errors happened:"
+      while IFS= read -r line; do echo "  - $line"; done <<<"$result"
+      echo -e "  ${CROSS} Recovery failed. Try \"pihole -g -r recreate\" instead."
+      return 1
+    fi
   else
-    echo -e "${OVER}  ${CROSS} ${str} - the following errors happened:"
-    while IFS= read -r line; do echo "  - $line"; done <<<"$result"
+    echo -e "${OVER}  ${CROSS} ${str} - .recover command failed"
     echo -e "  ${CROSS} Recovery failed. Try \"pihole -g -r recreate\" instead."
-    exit 1
+    return 1
   fi
   echo ""
 }
@@ -1171,7 +1182,7 @@ if [[ "${recreate_database:-}" == true ]]; then
 fi
 
 if [[ "${recover_database:-}" == true ]]; then
-  timeit database_recovery "$4"
+  timeit database_recovery "$4" || exit 1
 fi
 
 # Migrate scattered list files to the new cache directory
@@ -1204,8 +1215,12 @@ update_gravity_timestamp
 fix_owner_permissions "${gravityTEMPfile}"
 
 # Build the tree
-timeit gravity_build_tree gravity
-timeit gravity_build_tree antigravity
+if ! timeit gravity_build_tree gravity; then
+  exit 1
+fi
+if ! timeit gravity_build_tree antigravity; then
+  exit 1
+fi
 
 # Compute numbers to be displayed (do this after building the tree to get the
 # numbers quickly from the tree instead of having to scan the whole database)
