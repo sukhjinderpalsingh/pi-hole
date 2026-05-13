@@ -1568,7 +1568,7 @@ create_pihole_user() {
 # Install the logrotate script
 installLogrotate() {
     local str="Installing latest logrotate script"
-    local target=/etc/pihole/logrotate
+    local target=/etc/logrotate.d/pihole
     local logfileUpdate=false
 
     printf "\\n  %b %s..." "${INFO}" "${str}"

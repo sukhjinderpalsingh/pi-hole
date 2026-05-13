@@ -66,7 +66,7 @@ if [[ "$*" == *"once"* ]]; then
         echo -ne "  ${INFO} Running logrotate ..."
     fi
     mkdir -p "${STATEFILE%/*}"
-    /usr/sbin/logrotate --force --state "${STATEFILE}" /etc/pihole/logrotate
+    /usr/sbin/logrotate --force --state "${STATEFILE}" /etc/logrotate.d/pihole
 else
     # Manual flushing
     flush_log "${LOGFILE}"
