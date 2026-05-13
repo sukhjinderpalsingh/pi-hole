@@ -1569,40 +1569,10 @@ create_pihole_user() {
 installLogrotate() {
     local str="Installing latest logrotate script"
     local target=/etc/logrotate.d/pihole
-    local logfileUpdate=false
 
     printf "\\n  %b %s..." "${INFO}" "${str}"
     if [[ -f ${target} ]]; then
-
-        # Account for changed logfile paths from /var/log -> /var/log/pihole/ made in core v5.11.
-        if grep -q "/var/log/pihole.log" ${target} || grep -q "/var/log/pihole-FTL.log" ${target}; then
-            sed -i 's/\/var\/log\/pihole.log/\/var\/log\/pihole\/pihole.log/g' ${target}
-            sed -i 's/\/var\/log\/pihole-FTL.log/\/var\/log\/pihole\/FTL.log/g' ${target}
-
-            printf "\\n\\t%b Old log file paths updated in existing logrotate file. \\n" "${INFO}"
-            logfileUpdate=true
-        fi
-
-        # Account for added webserver.log in v6.0
-        if ! grep -q "/var/log/pihole/webserver.log" ${target}; then
-            echo "/var/log/pihole/webserver.log {
-# su #
-weekly
-copytruncate
-rotate 3
-compress
-delaycompress
-notifempty
-nomail
-}" >> ${target}
-
-            printf "\\n\\t%b webserver.log added to logrotate file. \\n" "${INFO}"
-            logfileUpdate=true
-        fi
-        if [[ "${logfileUpdate}" == false ]]; then
-            printf "\\n\\t%b Existing logrotate file found. No changes made.\\n" "${INFO}"
-            return
-        fi
+        printf "\\n\\t%b Existing logrotate file found. No changes made.\\n" "${INFO}"
     else
         # Copy the file over from the local repo
         # Logrotate config file must be owned by root and not writable by group or other
