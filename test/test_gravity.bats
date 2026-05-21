@@ -52,10 +52,10 @@ teardown() {
 }
 
 @test "Default adlist is successfully added to gravity database" {
-    run bash -c "
+    run bash -c '
         echo "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" >/etc/pihole/adlists.list
         pihole -g
-    "
+    '
     assert_success
     assert_line --partial "${INFO} Creating new gravity database"
     refute_line --partial "${INFO} No source list found, or it is empty"
@@ -101,10 +101,10 @@ teardown() {
     assert_line --partial "adsite.com"
     assert_line --partial "||subdomain.domain.tld^"
     assert_line --partial "strange..domain..com"
-    run bash -c "
+    run bash -c '
         echo "file:///etc/pihole/localAdlist.txt" >/etc/pihole/adlists.list
         pihole -g
-    "
+    '
     assert_success
     assert_line --partial "${INFO} Creating new gravity database"
     refute_line --partial "${INFO} No source list found, or it is empty"
@@ -121,10 +121,10 @@ teardown() {
 }
 
 @test "Gravity fails to download invalid protocol" {
-    run bash -c "
+    run bash -c '
         echo "dadfasdfsdafsf.com" >/etc/pihole/adlists.list
         pihole -g
-    "
+    '
     assert_success
     assert_line --partial "${INFO} Creating new gravity database"
     refute_line --partial "${INFO} No source list found, or it is empty"
