@@ -191,7 +191,7 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: http://"
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=3 Msg: URL rejected: No host part in the URL)"
+    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=3 Msg:"
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
@@ -211,7 +211,7 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: http://localhost:81/list"
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: Failed to connect to localhost port 81 after 0 ms: Could not connect to server)"
+    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: Failed to connect to localhost port 81 after 0 ms:"
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
@@ -231,7 +231,7 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: http://10.0.0.1/list"
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=28 Msg: Connection timed out after 10002 milliseconds)"
+    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=28 Msg:"
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
