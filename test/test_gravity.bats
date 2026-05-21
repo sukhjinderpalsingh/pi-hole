@@ -11,6 +11,12 @@ TICK="[✓]"
 CROSS="[✗]"
 INFO="[i]"
 
+# Depending on the curl version, a specific error messages can be returned in case of failure
+curlVersion=$(curl --version | awk '{print $2;exit}')
+if echo "${curlVersion%.*}" | awk '{exit !($1 - 7.75 >= 0)}'; then
+    curl775=true
+fi
+
 setup_file() {
     # Install required dependencies and create pihole user
     run bash -c "
@@ -171,7 +177,12 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: https://raw.githubusercontent.df"
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=6 Msg: Could not resolve host: raw.githubusercontent.df"
+    if [ "${curl775}" = true ]; then
+        assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=6 Msg: Could not resolve host: raw.githubusercontent.df"
+    else
+        assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=6 Msg: No message available. Non supported curl version.)"
+    fi
+
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
@@ -211,7 +222,12 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: http://localhost:81/list"
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: Failed to connect to localhost port 81 after 0 ms:"
+    if [ "${curl775}" = true ]; then
+        assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: Failed to connect to localhost port 81"
+    else
+        assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: No message available. Non supported curl version.)"
+    fi
+
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
