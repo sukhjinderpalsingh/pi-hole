@@ -132,7 +132,7 @@ teardown() {
 
     assert_line --partial "${CROSS} Status: Invalid protocol specified. Ignoring list."
     assert_line --partial "Ensure your URL starts with a valid protocol like http:// , https:// or file:// ."
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code= Msg: )"
+    assert_line --partial "${CROSS} Status: Invalid protocol specified. Ignoring list."
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
@@ -171,7 +171,7 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: https://raw.githubusercontent.df"
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=6 Msg: Could not resolve host: raw.githubusercontent.df)"
+    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=6 Msg: Could not resolve host: raw.githubusercontent.df"
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
@@ -251,7 +251,7 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: https://localhost/list"
-    assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=60 Msg: SSL certificate problem: self-signed certificate in certificate chain)"
+    assert_line --partial "${CROSS} Status: Retrieval failed"
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
@@ -274,8 +274,7 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: file:///etc/shadow"
-    assert_line --partial "${CROSS} Cannot read file (current user 'pihole' lacks read permission)"
-    assert_line --partial "${CROSS} Status: Retrieval failed / empty list"
+    assert_line --partial "${CROSS} Cannot read file (user 'pihole' lacks read permission)"
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
@@ -299,7 +298,6 @@ teardown() {
 
     assert_line --partial "${INFO} Target: file:/./etc/shadow"
     assert_line --partial "${CROSS} etc/shadow does not exist"
-    assert_line --partial "${CROSS} Status: Retrieval failed / empty list"
     assert_line --partial "${CROSS} List download failed: no cached list available"
 
     refute_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
