@@ -17,6 +17,12 @@ if echo "${curlVersion%.*}" | awk '{exit !($1 - 7.75 >= 0)}'; then
     curl775=true
 fi
 
+# Really old curl versions miss a fix for using --etag-save and --etag-compare together (https://github.com/curl/curl/pull/5180)
+# Fixed in curl 7.70.0 - April 29 2020
+if echo "${curlVersion%.*}" | awk '{exit !($1 - 7.70 >= 0)}'; then
+    curl770=true
+fi
+
 setup_file() {
     # Install required dependencies and create pihole user
     run bash -c "
@@ -84,7 +90,11 @@ teardown() {
     refute_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
-    assert_line --partial "${TICK} Status: No changes detected"
+    if [ "${curl770}" = true ]; then
+        assert_line --partial "${TICK} Status: No changes detected"
+    else
+        assert_line --partial "${TICK} Status: Retrieval successful"
+    fi
     assert_line --regexp "Parsed [[:digit:]]+ exact domains and [[:digit:]]+ ABP-style domains.*"
 
     refute_line --partial "${INFO} Number of gravity domains: 0 (0 unique domains)"
