@@ -937,8 +937,6 @@ gravity_Cleanup() {
   rm "${GRAVITY_TMPDIR}"/*.phgpb 2>/dev/null
   # list to database parsing location
   rm "${GRAVITY_TMPDIR}"/*.gravity 2>/dev/null
-  # invalid_domains location
-  rm "${GRAVITY_TMPDIR}"/*.ph-non-domains 2>/dev/null
 
   # Ensure this function only runs when gravity_DownloadBlocklists() has completed
   if [[ "${DownloadBlocklists_done:-}" == true ]]; then
