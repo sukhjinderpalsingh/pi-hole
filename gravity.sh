@@ -186,11 +186,9 @@ database_table_from_file() {
   src="${2}"
   backup_path="${piholeDir}/migration_backup"
   backup_file="${backup_path}/$(basename "${2}")"
-  # Create a temporary file. We don't use '--suffix' here because not all
-  # implementations of mktemp support it, e.g. on Alpine
-  tmpFile="$(mktemp -p "${GRAVITY_TMPDIR}")"
-  mv "${tmpFile}" "${tmpFile%.*}.gravity"
-  tmpFile="${tmpFile%.*}.gravity"
+  # Create a temporary file with random filename with '.gravity' suffix.
+  # Cave: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine.
+  tmpFile="$(mktemp -p "${GRAVITY_TMPDIR}" --suffix=".gravity")"
 
   local timestamp
   timestamp="$(date --utc +'%s')"
@@ -620,10 +618,9 @@ gravity_DownloadBlocklistFromUrl() {
   local modifiedOptions=()
 
   # Create temp file to store content on disk instead of RAM
-  # We don't use '--suffix' here because not all implementations of mktemp support it, e.g. on Alpine
-  listCurlBuffer="$(mktemp -p "${GRAVITY_TMPDIR}")"
-  mv "${listCurlBuffer}" "${listCurlBuffer%.*}.phgpb"
-  listCurlBuffer="${listCurlBuffer%.*}.phgpb"
+  # Create a temporary file with random filename with '.phgpb' suffix.
+  # Cave: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine.
+  listCurlBuffer=$(mktemp -p "${GRAVITY_TMPDIR}" --suffix=".phgpb")
 
   # For all remote files, we try to determine if the file has changed to skip
   # downloading them whenever possible.
@@ -938,6 +935,8 @@ gravity_Cleanup() {
   rm ${piholeDir}/*.tmp 2>/dev/null
   # listCurlBuffer location
   rm "${GRAVITY_TMPDIR}"/*.phgpb 2>/dev/null
+  # list to database parsing location
+  rm "${GRAVITY_TMPDIR}"/*.gravity 2>/dev/null
   # invalid_domains location
   rm "${GRAVITY_TMPDIR}"/*.ph-non-domains 2>/dev/null
 
