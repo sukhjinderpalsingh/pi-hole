@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2154  # Disable warning about unreferenced variables
+
 # In case of test failure post the whole output of the run command
 bats::on_failure() {
     printf "\n"
@@ -13,6 +15,7 @@ bats::on_failure() {
     printf "   %s\n" "${BATS_RUN_COMMAND}"
     printf "\n"
     printf "   OUTPUT CAPTURED:\n"
+
     printf "   %s\n" "${output}"
     printf "\n"
     printf "═══════════════════════════════════════════════════════════════════════════════\n"
