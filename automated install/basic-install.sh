@@ -1791,6 +1791,7 @@ clone_or_reset_repos() {
         printf "  %b Resetting local repos\\n" "${INFO}"
 
         # import getFTLConfigValue from utils.sh
+        # shellcheck source="./advanced/Scripts/utils.sh"
         source "/opt/pihole/utils.sh"
         # Use the configured Web repo location on repair/update
         webInterfaceDir=$(getFTLConfigValue "webserver.paths.webroot")$(getFTLConfigValue "webserver.paths.webhome")
@@ -1802,7 +1803,7 @@ clone_or_reset_repos() {
                 exit 1
             }
         # Reset the Web repo
-        resetRepo ${webInterfaceDir} ||
+        resetRepo "${webInterfaceDir}" ||
             {
                 printf "  %b Unable to reset %s, exiting installer%b\\n" "${COL_RED}" "${webInterfaceDir}" "${COL_NC}"
                 exit 1
