@@ -6,6 +6,7 @@ load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
 load 'libs/bats-file/load'
 load 'libs/bats-mock/stub'
+load 'bats_helper.bash'
 
 INFO="[i]"
 FTL_BRANCH="development"

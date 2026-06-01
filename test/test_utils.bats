@@ -4,6 +4,7 @@
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
 load 'libs/bats-file/load'
+load 'bats_helper.bash'
 
 setup() {
     TEST_TEMP_DIR="$(temp_make)"
@@ -12,6 +13,7 @@ setup() {
 teardown() {
     temp_del "${TEST_TEMP_DIR}"
 }
+
 
 # ---------------------------------------------------------------------------
 

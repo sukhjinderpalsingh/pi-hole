@@ -4,10 +4,13 @@
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
 load 'libs/bats-mock/stub'
+load 'bats_helper.bash'
 
 TICK="[✓]"
 CROSS="[✗]"
 INFO="[i]"
+
+
 
 @test "installer exits when no supported package manager found" {
     [[ -e /usr/bin/apt-get ]] && mv /usr/bin/apt-get /usr/bin/apt-get.disabled

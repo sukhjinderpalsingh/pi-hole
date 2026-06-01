@@ -4,6 +4,7 @@
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
 load 'libs/bats-mock/stub'
+load 'bats_helper.bash'
 
 # ---------------------------------------------------------------------------
 # IPv6 detection
