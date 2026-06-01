@@ -4,6 +4,7 @@
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
 load 'libs/bats-file/load'
+load 'bats_helper.bash'
 
 FTL_BRANCH="development"
 
