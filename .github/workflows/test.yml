@@ -73,6 +73,7 @@ jobs:
             alpine_3_21,
             alpine_3_22,
             alpine_3_23,
+            alpine_3_24,
           ]
     steps:
       - name: Checkout repository
