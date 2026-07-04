@@ -14,9 +14,12 @@ INFO="[i]"
 
 # Depending on the curl version, a specific error messages can be returned in case of failure
 curlVersion=$(curl --version | awk '{print $2;exit}')
-if echo "${curlVersion%.*}" | awk '{exit !($1 - 7.75 >= 0)}'; then
+if echo "${curlVersion%.*}" | awk '{exit !($1 - 8.21 >= 0)}'; then
+    curl821=true
+elif echo "${curlVersion%.*}" | awk '{exit !($1 - 7.75 >= 0)}'; then
     curl775=true
 fi
+
 
 # Really old curl versions miss a fix for using --etag-save and --etag-compare together (https://github.com/curl/curl/pull/5180)
 # Fixed in curl 7.70.0 - April 29 2020
@@ -233,7 +236,9 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: http://localhost:81/list"
-    if [ "${curl775}" = true ]; then
+    if [ "${curl821}" = true ]; then
+        assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: Failed to connect to localhost:81"
+    elif [ "${curl775}" = true ]; then
         assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: Failed to connect to localhost port 81"
     else
         assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=7 Msg: No message available. Non supported curl version.)"
