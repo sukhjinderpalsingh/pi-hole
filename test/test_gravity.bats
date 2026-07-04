@@ -14,17 +14,22 @@ INFO="[i]"
 
 # Depending on the curl version, a specific error messages can be returned in case of failure
 curlVersion=$(curl --version | awk '{print $2;exit}')
-if echo "${curlVersion%.*}" | awk '{exit !($1 - 8.21 >= 0)}'; then
+
+# Compare dotted versions semantically
+version_ge() {
+    [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+if version_ge "${curlVersion}" "8.21.0"; then
     curl821=true
-elif echo "${curlVersion%.*}" | awk '{exit !($1 - 7.75 >= 0)}'; then
+elif version_ge "${curlVersion}" "7.75.0"; then
     curl775=true
 fi
 
-
 # Really old curl versions miss a fix for using --etag-save and --etag-compare together (https://github.com/curl/curl/pull/5180)
 # Fixed in curl 7.70.0 - April 29 2020
-if echo "${curlVersion%.*}" | awk '{exit !($1 - 7.70 >= 0)}'; then
-    curl770=true
+if version_ge "${curlVersion}" "7.70.0"; then
+    curl_etag_support=true
 fi
 
 setup_file() {
@@ -94,7 +99,7 @@ teardown() {
     refute_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
-    if [ "${curl770}" = true ]; then
+    if [ "${curl_etag_support}" = true ]; then
         assert_line --partial "${TICK} Status: No changes detected"
     else
         assert_line --partial "${TICK} Status: Retrieval successful"
@@ -191,7 +196,7 @@ teardown() {
     assert_line --partial "${INFO} Migrating content of /etc/pihole/adlists.list into new database"
 
     assert_line --partial "${INFO} Target: https://raw.githubusercontent.df"
-    if [ "${curl775}" = true ]; then
+    if [ "${curl775}" = true ] || [ "${curl821}" = true ]; then
         assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=6 Msg: Could not resolve host: raw.githubusercontent.df"
     else
         assert_line --partial "${CROSS} Status: Retrieval failed (exit_code=6 Msg: No message available. Non supported curl version.)"
