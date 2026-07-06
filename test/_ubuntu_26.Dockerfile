@@ -1,4 +1,4 @@
-FROM buildpack-deps:24.04-scm
+FROM buildpack-deps:26.04-scm
 
 ENV GITDIR=/etc/.pihole
 ENV SCRIPTDIR=/opt/pihole
@@ -24,4 +24,3 @@ RUN git clone --depth=1 --single-branch --branch "${BATS_CORE_VER}"    https://g
     git clone --depth=1 --single-branch --branch "${BATS_FILE_VER}"    https://github.com/bats-core/bats-file    $GITDIR/test/libs/bats-file
 
 ENV SKIP_INSTALL=true
-

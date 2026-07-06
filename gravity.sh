@@ -186,11 +186,9 @@ database_table_from_file() {
   src="${2}"
   backup_path="${piholeDir}/migration_backup"
   backup_file="${backup_path}/$(basename "${2}")"
-  # Create a temporary file. We don't use '--suffix' here because not all
-  # implementations of mktemp support it, e.g. on Alpine
-  tmpFile="$(mktemp -p "${GRAVITY_TMPDIR}")"
-  mv "${tmpFile}" "${tmpFile%.*}.gravity"
-  tmpFile="${tmpFile%.*}.gravity"
+  # Create a temporary file with random filename with '.gravity' suffix.
+  # Note: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine, but it is installed as Pi-hole dependency.
+  tmpFile="$(mktemp -p "${GRAVITY_TMPDIR}" --suffix=".gravity")"
 
   local timestamp
   timestamp="$(date --utc +'%s')"
@@ -620,10 +618,9 @@ gravity_DownloadBlocklistFromUrl() {
   local modifiedOptions=()
 
   # Create temp file to store content on disk instead of RAM
-  # We don't use '--suffix' here because not all implementations of mktemp support it, e.g. on Alpine
-  listCurlBuffer="$(mktemp -p "${GRAVITY_TMPDIR}")"
-  mv "${listCurlBuffer}" "${listCurlBuffer%.*}.phgpb"
-  listCurlBuffer="${listCurlBuffer%.*}.phgpb"
+  # Create a temporary file with random filename with '.phgpb' suffix.
+  # Note: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine, but it is installed as Pi-hole dependency.
+  listCurlBuffer=$(mktemp -p "${GRAVITY_TMPDIR}" --suffix=".phgpb")
 
   # For all remote files, we try to determine if the file has changed to skip
   # downloading them whenever possible.
@@ -772,18 +769,22 @@ gravity_DownloadBlocklistFromUrl() {
     # Define the generic error message
     curlOutputFormat='%{http_code};No message available. Non supported curl version.'
 
-    # Check if the installed curl version supports the "-w %{errormsg}" option (available as of curl 7.75.0)
-    # (https://github.com/pi-hole/pi-hole/pull/6605#discussion_r3112153347)
-    # First we get the current curl version.
+    # Get the current installed curl version.
     curlVersion=$(curl --version | awk '{print $2;exit}')
-    # After that, we pipe the current version along with the string '7.75' (the minimum version supporting the required option.)
-    # Then we sort the list in natural (version) order and return the first item which will be the lowest version seen.
-    # If it is "7.75" then the current version is greater than or equal to "7.75.0".
-    # Compatibility notes:
-    #   Busybox doesn't support some long flags:
-    #   - "sort -V" is short form of "sort --version-sort"
-    #   - "head -n1" is short form of "head --lines=1"
-    if [[ "$(printf '%s\n' "${curlVersion}" "7.75" | sort -V | head -n1)" == 7.75 ]]; then
+
+    # Check if the installed curl version supports the "-w %{errormsg}" option.
+    # The minimum curl version supporting this option is 7.75.0.
+    # (https://github.com/pi-hole/pi-hole/pull/6605#discussion_r3112153347)
+    #
+    # We use "awk" to compare versions by subtracting 7.75 from the version number.
+    # If the result is greater than or equal to zero, the option is supported.
+    # (see https://github.com/pi-hole/pi-hole/issues/6615)
+    #
+    # Notes:
+    # - Use parameter expansion to get only Major and Minor version parts (containing only one dot).
+    # - The comparison result will be true or false. We use it as exit code.
+    # - awk considers "true=1". We negate the comparison to exit with "0" when a desired version is found.
+    if echo "${curlVersion%.*}" | awk '{exit !($1 - 7.75 >= 0)}'; then
         # Use the error message returned by curl
         curlOutputFormat='%{http_code};%{errormsg}'
     fi
@@ -796,47 +797,48 @@ gravity_DownloadBlocklistFromUrl() {
     # a generic message is returned.
     curlOutput=$(curl --connect-timeout ${curl_connect_timeout} -s --fail -L ${compression:+${compression}} ${customUpstreamResolver:+${customUpstreamResolver}} "${modifiedOptions[@]}" -w "${curlOutputFormat}" "${url}" -o "${listCurlBuffer}")
     curlExitCode="$?"
+
+
+    # Retrieve http_code and errormsg values, returned by curl command
+    IFS=";" read -r httpCode curlErrorMsg <<<"$curlOutput"
+
+    case $url in
+    # Did we "download" a local file?
+    "file"*)
+      if [[ -s "${listCurlBuffer}" ]]; then
+        echo -e "${OVER}  ${TICK} ${str} Retrieval successful"
+        success=true
+      else
+        echo -e "${OVER}  ${CROSS} ${str} Retrieval failed / empty list"
+      fi
+      ;;
+    # Did we "download" a remote file?
+    *)
+      # Use the exit code to determine if curl was successful or not.
+      # Use HTTP code only to select the correct error message.
+      if [[ "${curlExitCode}" == "0" ]]; then
+        case "${httpCode}" in
+          "200") echo -e "${OVER}  ${TICK} ${str} Retrieval successful" ;;
+          "304") echo -e "${OVER}  ${TICK} ${str} No changes detected"  ;;
+          *) echo -e "${OVER}  ${TICK} ${str} Success (http_code=${COL_CYAN}${httpCode}${COL_NC})"  ;;
+        esac
+        success=true
+      else
+        case "${httpCode}" in
+          "403") echo -e "${OVER}  ${CROSS} ${str} Forbidden" ;;
+          "404") echo -e "${OVER}  ${CROSS} ${str} Not found" ;;
+          "408") echo -e "${OVER}  ${CROSS} ${str} Time-out" ;;
+          "451") echo -e "${OVER}  ${CROSS} ${str} Unavailable For Legal Reasons" ;;
+          "500") echo -e "${OVER}  ${CROSS} ${str} Internal Server Error" ;;
+          "504") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Gateway)" ;;
+          "521") echo -e "${OVER}  ${CROSS} ${str} Web Server Is Down (Cloudflare)" ;;
+          "522") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Cloudflare)" ;;
+          *) echo -e "${OVER}  ${CROSS} ${str} Retrieval failed (exit_code=${COL_CYAN}${curlExitCode}${COL_NC} Msg: ${COL_CYAN}${curlErrorMsg}${COL_NC})" ;;
+        esac
+      fi
+      ;;
+    esac
   fi
-
-  # Retrieve http_code and errormsg values, returned by curl command
-  IFS=";" read -r httpCode curlErrorMsg <<<"$curlOutput"
-
-  case $url in
-  # Did we "download" a local file?
-  "file"*)
-    if [[ -s "${listCurlBuffer}" ]]; then
-      echo -e "${OVER}  ${TICK} ${str} Retrieval successful"
-      success=true
-    else
-      echo -e "${OVER}  ${CROSS} ${str} Retrieval failed / empty list"
-    fi
-    ;;
-  # Did we "download" a remote file?
-  *)
-    # Use the exit code to determine if curl was successful or not.
-    # Use HTTP code only to select the correct error message.
-    if [[ "${curlExitCode}" == "0" ]]; then
-      case "${httpCode}" in
-        "200") echo -e "${OVER}  ${TICK} ${str} Retrieval successful" ;;
-        "304") echo -e "${OVER}  ${TICK} ${str} No changes detected"  ;;
-        *) echo -e "${OVER}  ${TICK} ${str} Success (http_code=${COL_CYAN}${httpCode}${COL_NC})"  ;;
-      esac
-      success=true
-    else
-      case "${httpCode}" in
-        "403") echo -e "${OVER}  ${CROSS} ${str} Forbidden" ;;
-        "404") echo -e "${OVER}  ${CROSS} ${str} Not found" ;;
-        "408") echo -e "${OVER}  ${CROSS} ${str} Time-out" ;;
-        "451") echo -e "${OVER}  ${CROSS} ${str} Unavailable For Legal Reasons" ;;
-        "500") echo -e "${OVER}  ${CROSS} ${str} Internal Server Error" ;;
-        "504") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Gateway)" ;;
-        "521") echo -e "${OVER}  ${CROSS} ${str} Web Server Is Down (Cloudflare)" ;;
-        "522") echo -e "${OVER}  ${CROSS} ${str} Connection Timed Out (Cloudflare)" ;;
-        *) echo -e "${OVER}  ${CROSS} ${str} Retrieval failed (exit_code=${COL_CYAN}${curlExitCode}${COL_NC} Msg: ${COL_CYAN}${curlErrorMsg}${COL_NC})" ;;
-      esac
-    fi
-    ;;
-  esac
 
   local done="false"
   # Determine if the blocklist was downloaded and saved correctly
@@ -933,8 +935,8 @@ gravity_Cleanup() {
   rm ${piholeDir}/*.tmp 2>/dev/null
   # listCurlBuffer location
   rm "${GRAVITY_TMPDIR}"/*.phgpb 2>/dev/null
-  # invalid_domains location
-  rm "${GRAVITY_TMPDIR}"/*.ph-non-domains 2>/dev/null
+  # list to database parsing location
+  rm "${GRAVITY_TMPDIR}"/*.gravity 2>/dev/null
 
   # Ensure this function only runs when gravity_DownloadBlocklists() has completed
   if [[ "${DownloadBlocklists_done:-}" == true ]]; then
@@ -961,6 +963,8 @@ database_recovery() {
   local result
   local str="Checking integrity of existing gravity database (this can take a while)"
   local option="${1}"
+  local recoverySQL="${gravityDBfile}.recovery.sql"
+  trap 'rm -f "${recoverySQL}"' RETURN
   echo -ne "  ${INFO} ${str}..."
   result="$(pihole-FTL sqlite3 -ni "${gravityDBfile}" "PRAGMA integrity_check" 2>&1)"
 
@@ -989,17 +993,26 @@ database_recovery() {
   echo -ne "  ${INFO} ${str}..."
   # We have to remove any possibly existing recovery database or this will fail
   rm -f "${gravityDBfile}.recovered" >/dev/null 2>&1
-  if result="$(pihole-FTL sqlite3 -ni "${gravityDBfile}" ".recover" | pihole-FTL sqlite3 -ni "${gravityDBfile}.recovered" 2>&1)"; then
-    echo -e "${OVER}  ${TICK} ${str} - success"
-    mv "${gravityDBfile}" "${gravityDBfile}.old"
-    mv "${gravityDBfile}.recovered" "${gravityDBfile}"
-    echo -ne " ${INFO} ${gravityDBfile} has been recovered"
-    echo -ne " ${INFO} The old ${gravityDBfile} has been moved to ${gravityDBfile}.old"
+  # Stage .recover output to a temp file so each command's exit status can
+  # be checked independently. Piping would hide a failing .recover because
+  # bash reports the RHS exit status for the whole pipe.
+  if pihole-FTL sqlite3 -ni "${gravityDBfile}" ".recover" > "${recoverySQL}"; then
+    if result="$(pihole-FTL sqlite3 -ni "${gravityDBfile}.recovered" < "${recoverySQL}" 2>&1)"; then
+      echo -e "${OVER}  ${TICK} ${str} - success"
+      mv "${gravityDBfile}" "${gravityDBfile}.old"
+      mv "${gravityDBfile}.recovered" "${gravityDBfile}"
+      echo -ne " ${INFO} ${gravityDBfile} has been recovered"
+      echo -ne " ${INFO} The old ${gravityDBfile} has been moved to ${gravityDBfile}.old"
+    else
+      echo -e "${OVER}  ${CROSS} ${str} - the following errors happened:"
+      while IFS= read -r line; do echo "  - $line"; done <<<"$result"
+      echo -e "  ${CROSS} Recovery failed. Try \"pihole -g -r recreate\" instead."
+      return 1
+    fi
   else
-    echo -e "${OVER}  ${CROSS} ${str} - the following errors happened:"
-    while IFS= read -r line; do echo "  - $line"; done <<<"$result"
+    echo -e "${OVER}  ${CROSS} ${str} - .recover command failed"
     echo -e "  ${CROSS} Recovery failed. Try \"pihole -g -r recreate\" instead."
-    exit 1
+    return 1
   fi
   echo ""
 }
@@ -1167,7 +1180,7 @@ if [[ "${recreate_database:-}" == true ]]; then
 fi
 
 if [[ "${recover_database:-}" == true ]]; then
-  timeit database_recovery "$4"
+  timeit database_recovery "$4" || exit 1
 fi
 
 # Migrate scattered list files to the new cache directory
@@ -1200,8 +1213,12 @@ update_gravity_timestamp
 fix_owner_permissions "${gravityTEMPfile}"
 
 # Build the tree
-timeit gravity_build_tree gravity
-timeit gravity_build_tree antigravity
+if ! timeit gravity_build_tree gravity; then
+  exit 1
+fi
+if ! timeit gravity_build_tree antigravity; then
+  exit 1
+fi
 
 # Compute numbers to be displayed (do this after building the tree to get the
 # numbers quickly from the tree instead of having to scan the whole database)

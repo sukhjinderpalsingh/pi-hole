@@ -162,7 +162,7 @@ EOM
 )
 
 # List of required packages on APK based systems
-PIHOLE_META_VERSION_APK=0.2
+PIHOLE_META_VERSION_APK=0.3
 PIHOLE_META_DEPS_APK=(
     bash
     bash-completion
@@ -172,6 +172,7 @@ PIHOLE_META_DEPS_APK=(
     cronie
     curl
     dialog
+    gawk
     git
     grep
     iproute2-minimal # piholeARPTable.sh
@@ -874,19 +875,16 @@ setDNS() {
         until [[ "${DNSSettingsCorrect}" = True ]]; do
             # Signal value, to be used if the user inputs an invalid IP address
             strInvalid="Invalid"
-            if [[ ! "${PIHOLE_DNS_1}" ]]; then
-                if [[ ! "${PIHOLE_DNS_2}" ]]; then
-                    # If the first and second upstream servers do not exist, do not prepopulate an IP address
-                    prePopulate=""
-                else
-                    # Otherwise, prepopulate the dialogue with the appropriate DNS value(s)
-                    prePopulate=", ${PIHOLE_DNS_2}"
-                fi
-            elif [[ "${PIHOLE_DNS_1}" ]] && [[ ! "${PIHOLE_DNS_2}" ]]; then
-                prePopulate="${PIHOLE_DNS_1}"
-            elif [[ "${PIHOLE_DNS_1}" ]] && [[ "${PIHOLE_DNS_2}" ]]; then
-                prePopulate="${PIHOLE_DNS_1}, ${PIHOLE_DNS_2}"
-            fi
+            # Prepopulate the dialog with any previously set DNS values
+            prePopulate=""
+            i=1
+            while true; do
+                varname="PIHOLE_DNS_${i}"
+                [[ -n "${!varname}" ]] || break
+                [[ -n "${prePopulate}" ]] && prePopulate+=", "
+                prePopulate+="${!varname}"
+                ((i++))
+            done
 
             # Prompt the user to enter custom upstream servers
             piholeDNS=$(dialog --no-shadow --keep-tite --output-fd 1 \
@@ -905,45 +903,93 @@ If you want to specify a port other than 53, separate it with a hash.\
                 ;;
             esac
 
-            # Clean user input and replace whitespace with comma.
+            # Clean user input: replace whitespace with comma, then collapse consecutive commas.
             piholeDNS="${piholeDNS//[[:blank:]]/,}"
+            while [[ "${piholeDNS}" == *,,* ]]; do piholeDNS="${piholeDNS//,,/,}"; done
+            piholeDNS="${piholeDNS#,}"
+            piholeDNS="${piholeDNS%,}"
 
-            # Separate the user input into the two DNS values (separated by a comma)
-            printf -v PIHOLE_DNS_1 "%s" "${piholeDNS%%,*}"
-            printf -v PIHOLE_DNS_2 "%s" "${piholeDNS##*,}"
+            # Clear any previously set PIHOLE_DNS_N variables before re-assigning.
+            i=1
+            while true; do
+                varname="PIHOLE_DNS_${i}"
+                [[ -n "${!varname}" ]] || break
+                unset "${varname}"
+                ((i++))
+            done
 
-            # If the first DNS value is invalid (neither IPv4 nor IPv6) or empty, set PIHOLE_DNS_1="Invalid"
-            if ! valid_ip "${PIHOLE_DNS_1}" && ! valid_ip6 "${PIHOLE_DNS_1}" || [[ -z "${PIHOLE_DNS_1}" ]]; then
-                PIHOLE_DNS_1=${strInvalid}
+            # Split the cleaned input on commas and assign each entry to PIHOLE_DNS_N.
+            IFS=',' read -ra dns_array <<< "${piholeDNS}"
+            i=1
+            for entry in "${dns_array[@]}"; do
+                [[ -z "${entry}" ]] && continue
+                printf -v "PIHOLE_DNS_${i}" "%s" "${entry}"
+                ((i++))
+            done
+
+            # Validate each DNS entry; build a list of invalid values.
+            invalidList=""
+            i=1
+            while true; do
+                varname="PIHOLE_DNS_${i}"
+                val="${!varname}"
+                [[ -n "${val}" ]] || break
+                if ! valid_ip "${val}" && ! valid_ip6 "${val}"; then
+                    printf -v "${varname}" "%s" "${strInvalid}"
+                    invalidList+=" ${val},"
+                fi
+                ((i++))
+            done
+            # Require at least one DNS server to have been entered.
+            if [[ -z "${PIHOLE_DNS_1}" ]]; then
+                PIHOLE_DNS_1="${strInvalid}"
+                invalidList+=" (none),"
             fi
-            # If the second DNS value is invalid but not empty, set PIHOLE_DNS_2="Invalid"
-            if ! valid_ip "${PIHOLE_DNS_2}" && ! valid_ip6 "${PIHOLE_DNS_2}" && [[ -n "${PIHOLE_DNS_2}" ]]; then
-                PIHOLE_DNS_2=${strInvalid}
-            fi
-            # If either of the DNS servers are invalid,
-            if [[ "${PIHOLE_DNS_1}" == "${strInvalid}" ]] || [[ "${PIHOLE_DNS_2}" == "${strInvalid}" ]]; then
-                # explain this to the user,
+            # Remove trailing comma from list.
+            invalidList="${invalidList%,}"
+
+            # If any entries were invalid, explain to the user and retry.
+            if [[ -n "${invalidList}" ]]; then
                 dialog --no-shadow --keep-tite \
                     --title "Invalid IP Address(es)" \
                     --backtitle "Invalid IP" \
-                    --msgbox "\\nOne or both of the entered IP addresses were invalid. Please try again.\
-\\n\\nInvalid IPs: ${PIHOLE_DNS_1}, ${PIHOLE_DNS_2}" \
+                    --msgbox "\\nOne or more of the entered IP addresses were invalid. Please try again.\
+\\n\\nInvalid IPs:${invalidList}" \
                     "${r}" "${c}"
 
-                # set the variables back to nothing,
-                if [[ "${PIHOLE_DNS_1}" == "${strInvalid}" ]]; then
-                    PIHOLE_DNS_1=""
-                fi
-                if [[ "${PIHOLE_DNS_2}" == "${strInvalid}" ]]; then
-                    PIHOLE_DNS_2=""
-                fi
-                # and continue the loop.
+                # Keep valid entries and discard invalid ones, then re-compact the numbering.
+                valid_entries=()
+                i=1
+                while true; do
+                    varname="PIHOLE_DNS_${i}"
+                    val="${!varname}"
+                    [[ -n "${val}" ]] || break
+                    if [[ "${val}" != "${strInvalid}" ]]; then
+                        valid_entries+=("${val}")
+                    fi
+                    unset "${varname}"
+                    ((i++))
+                done
+                for i in "${!valid_entries[@]}"; do
+                    printf -v "PIHOLE_DNS_$((i + 1))" "%s" "${valid_entries[${i}]}"
+                done
+
                 DNSSettingsCorrect=False
             else
+                # Build confirmation message listing every DNS server.
+                local confirmDNSMsg="Are these settings correct?\\n"
+                i=1
+                while true; do
+                    varname="PIHOLE_DNS_${i}"
+                    val="${!varname}"
+                    [[ -n "${val}" ]] || break
+                    confirmDNSMsg+=$'\t'"DNS Server ${i}:"$'\t'"${val}\\n"
+                    ((i++))
+                done
                 dialog --no-shadow --no-collapse --keep-tite \
                     --backtitle "Specify Upstream DNS Provider(s)" \
                     --title "Upstream DNS Provider(s)" \
-                    --yesno "Are these settings correct?\\n"$'\t'"DNS Server 1:"$'\t'"${PIHOLE_DNS_1}\\n"$'\t'"DNS Server 2:"$'\t'"${PIHOLE_DNS_2}" \
+                    --yesno "${confirmDNSMsg}" \
                     "${r}" "${c}" && result=0 || result=$?
 
                 case ${result} in
@@ -1567,39 +1613,15 @@ create_pihole_user() {
 # Install the logrotate script
 installLogrotate() {
     local str="Installing latest logrotate script"
-    local target=/etc/pihole/logrotate
-    local logfileUpdate=false
+    local target=/etc/logrotate.d/pihole
 
     printf "\\n  %b %s..." "${INFO}" "${str}"
     if [[ -f ${target} ]]; then
-
-        # Account for changed logfile paths from /var/log -> /var/log/pihole/ made in core v5.11.
-        if grep -q "/var/log/pihole.log" ${target} || grep -q "/var/log/pihole-FTL.log" ${target}; then
-            sed -i 's/\/var\/log\/pihole.log/\/var\/log\/pihole\/pihole.log/g' ${target}
-            sed -i 's/\/var\/log\/pihole-FTL.log/\/var\/log\/pihole\/FTL.log/g' ${target}
-
-            printf "\\n\\t%b Old log file paths updated in existing logrotate file. \\n" "${INFO}"
-            logfileUpdate=true
-        fi
-
-        # Account for added webserver.log in v6.0
-        if ! grep -q "/var/log/pihole/webserver.log" ${target}; then
-            echo "/var/log/pihole/webserver.log {
-# su #
-weekly
-copytruncate
-rotate 3
-compress
-delaycompress
-notifempty
-nomail
-}" >> ${target}
-
-            printf "\\n\\t%b webserver.log added to logrotate file. \\n" "${INFO}"
-            logfileUpdate=true
-        fi
-        if [[ "${logfileUpdate}" == false ]]; then
-            printf "\\n\\t%b Existing logrotate file found. No changes made.\\n" "${INFO}"
+        if diff -q "$target" "${PI_HOLE_LOCAL_REPO}/advanced/Templates/logrotate" >/dev/null; then
+            printf "\\n\\t%b logrotate file is up to date.\\n" "${TICK}"
+            return
+        else
+            printf "\\n\\t%b logrotate file is outdated. Not updating.\\n" "${INFO}"
             return
         fi
     else
@@ -1790,6 +1812,7 @@ clone_or_reset_repos() {
         printf "  %b Resetting local repos\\n" "${INFO}"
 
         # import getFTLConfigValue from utils.sh
+        # shellcheck source="./advanced/Scripts/utils.sh"
         source "/opt/pihole/utils.sh"
         # Use the configured Web repo location on repair/update
         webInterfaceDir=$(getFTLConfigValue "webserver.paths.webroot")$(getFTLConfigValue "webserver.paths.webhome")
@@ -1801,7 +1824,7 @@ clone_or_reset_repos() {
                 exit 1
             }
         # Reset the Web repo
-        resetRepo ${webInterfaceDir} ||
+        resetRepo "${webInterfaceDir}" ||
             {
                 printf "  %b Unable to reset %s, exiting installer%b\\n" "${COL_RED}" "${webInterfaceDir}" "${COL_NC}"
                 exit 1
@@ -2425,11 +2448,20 @@ main() {
         # needs to be done after FTL service has been started, otherwise pihole.toml does not exist
         # set on fresh installations by setDNS() and setPrivacyLevel() and setLogging()
 
-        # Upstreams may be needed in order to run gravity.sh
-        if [ -n "${PIHOLE_DNS_1}" ]; then
-            local string="\"${PIHOLE_DNS_1}\""
-            [ -n "${PIHOLE_DNS_2}" ] && string+=", \"${PIHOLE_DNS_2}\""
-            setFTLConfigValue "dns.upstreams" "[ ${string} ]"
+        # Upstreams may be needed in order to run gravity.sh.
+        # Build the dns.upstreams array from all PIHOLE_DNS_N variables.
+        local dns_strings=""
+        i=1
+        while true; do
+            varname="PIHOLE_DNS_${i}"
+            val="${!varname}"
+            [[ -n "${val}" ]] || break
+            [[ -n "${dns_strings}" ]] && dns_strings+=", "
+            dns_strings+="\"${val}\""
+            ((i++))
+        done
+        if [ -n "${dns_strings}" ]; then
+            setFTLConfigValue "dns.upstreams" "[ ${dns_strings} ]"
         fi
 
         if [ -n "${QUERY_LOGGING}" ]; then

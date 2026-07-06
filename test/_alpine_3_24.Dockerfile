@@ -1,13 +1,14 @@
-FROM buildpack-deps:24.04-scm
+FROM alpine:3.24
 
 ENV GITDIR=/etc/.pihole
 ENV SCRIPTDIR=/opt/pihole
+RUN sed -i 's/#\(.*\/community\)/\1/' /etc/apk/repositories
+RUN apk --no-cache add bash coreutils curl git jq ncurses openrc shadow
 
 RUN mkdir -p $GITDIR $SCRIPTDIR /etc/pihole
 ADD . $GITDIR
 RUN cp $GITDIR/advanced/Scripts/*.sh $GITDIR/gravity.sh $GITDIR/pihole $GITDIR/automated\ install/*.sh $GITDIR/advanced/Scripts/COL_TABLE $SCRIPTDIR/
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$SCRIPTDIR
-ENV DEBIAN_FRONTEND=noninteractive
 
 RUN true && \
     chmod +x $SCRIPTDIR/*

@@ -155,6 +155,9 @@ removePiholeFiles() {
     # Remove pihole from sudoers for compatibility with old versions
     rm -f /etc/sudoers.d/pihole &> /dev/null
 
+    # Remove logrotate configuration for Pi-hole
+    rm -f /etc/logrotate.d/pihole &> /dev/null
+
     echo -e "  ${TICK} Removed config files"
 }
 

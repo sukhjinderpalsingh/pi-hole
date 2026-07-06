@@ -92,12 +92,9 @@ loadVersionFile() {
 
 #######################
 # returns FTL's PID based on the content of the pihole-FTL.pid file
-#
-# Takes one argument: path to pihole-FTL.pid
-# Example getFTLPID "/run/pihole-FTL.pid"
 #######################
 getFTLPID() {
-    local FTL_PID_FILE="${1}"
+    local FTL_PID_FILE="/run/pihole-FTL.pid"  # hardcoded — see GHSA-6w8x-p785-6pm4
     local FTL_PID
 
     if [ -s "${FTL_PID_FILE}" ]; then

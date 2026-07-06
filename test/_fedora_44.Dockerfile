@@ -1,4 +1,5 @@
-FROM buildpack-deps:24.04-scm
+FROM fedora:44
+RUN dnf install -y git initscripts
 
 ENV GITDIR=/etc/.pihole
 ENV SCRIPTDIR=/opt/pihole
@@ -7,7 +8,6 @@ RUN mkdir -p $GITDIR $SCRIPTDIR /etc/pihole
 ADD . $GITDIR
 RUN cp $GITDIR/advanced/Scripts/*.sh $GITDIR/gravity.sh $GITDIR/pihole $GITDIR/automated\ install/*.sh $GITDIR/advanced/Scripts/COL_TABLE $SCRIPTDIR/
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$SCRIPTDIR
-ENV DEBIAN_FRONTEND=noninteractive
 
 RUN true && \
     chmod +x $SCRIPTDIR/*
@@ -24,4 +24,3 @@ RUN git clone --depth=1 --single-branch --branch "${BATS_CORE_VER}"    https://g
     git clone --depth=1 --single-branch --branch "${BATS_FILE_VER}"    https://github.com/bats-core/bats-file    $GITDIR/test/libs/bats-file
 
 ENV SKIP_INSTALL=true
-
