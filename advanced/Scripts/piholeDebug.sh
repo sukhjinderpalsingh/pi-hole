@@ -77,6 +77,7 @@ WEBHOME_PATH="$(get_ftl_conf_value "webserver.paths.webhome")"
 WEB_GIT_DIRECTORY="${HTML_DIRECTORY}${WEBHOME_PATH}"
 SHM_DIRECTORY="/dev/shm"
 ETC="/etc"
+ETC_LOGROTATE_DIRECTORY="${ETC}/logrotate.d"
 
 # Files required by Pi-hole
 # https://discourse.pi-hole.net/t/what-files-does-pi-hole-use/1684
@@ -84,7 +85,7 @@ PIHOLE_CRON_FILE="${CRON_D_DIRECTORY}/pihole"
 
 PIHOLE_INSTALL_LOG_FILE="${PIHOLE_DIRECTORY}/install.log"
 PIHOLE_RAW_BLOCKLIST_FILES="${PIHOLE_DIRECTORY}/list.*"
-PIHOLE_LOGROTATE_FILE="${PIHOLE_DIRECTORY}/logrotate"
+PIHOLE_LOGROTATE_FILE="${ETC_LOGROTATE_DIRECTORY}/pihole"
 PIHOLE_FTL_CONF_FILE="${PIHOLE_DIRECTORY}/pihole.toml"
 PIHOLE_DNSMASQ_CONF_FILE="${PIHOLE_DIRECTORY}/dnsmasq.conf"
 PIHOLE_VERSIONS_FILE="${PIHOLE_DIRECTORY}/versions"

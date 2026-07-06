@@ -15,9 +15,6 @@ find /etc/pihole/ /var/log/pihole/ -type f ! \( -name '*.pem' -o -name '*.crt' \
 # Set TLS-related files to a more restrictive u+rw *only* (they may contain private keys)
 find /etc/pihole/ -type f \( -name '*.pem' -o -name '*.crt' \) -exec chmod 0600 {} +
 
-# Logrotate config file need to be owned by root
-chown root:root /etc/pihole/logrotate
-
 # Touch files to ensure they exist (create if non-existing, preserve if existing)
 # Hardcoded PID path — see GHSA-6w8x-p785-6pm4
 [ -f /run/pihole-FTL.pid ] || install -D -m 644 -o pihole -g pihole /dev/null /run/pihole-FTL.pid
