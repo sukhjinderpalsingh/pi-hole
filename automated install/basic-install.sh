@@ -1617,7 +1617,13 @@ installLogrotate() {
 
     printf "\\n  %b %s..." "${INFO}" "${str}"
     if [[ -f ${target} ]]; then
-        printf "\\n\\t%b Existing logrotate file found. No changes made.\\n" "${INFO}"
+        if diff -q "$target" "${PI_HOLE_LOCAL_REPO}/advanced/Templates/logrotate" >/dev/null; then
+            printf "\\n\\t%b logrotate file is up to date.\\n" "${TICK}"
+            return
+        else
+            printf "\\n\\t%b logrotate file is outdated. Not updating.\\n" "${INFO}"
+            return
+        fi
     else
         # Copy the file over from the local repo
         # Logrotate config file must be owned by root and not writable by group or other
