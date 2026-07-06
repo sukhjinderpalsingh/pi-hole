@@ -619,7 +619,7 @@ gravity_DownloadBlocklistFromUrl() {
 
   # Create temp file to store content on disk instead of RAM
   # Create a temporary file with random filename with '.phgpb' suffix.
-  # Cave: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine.
+  # Note: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine, but it is installed as Pi-hole dependency.
   listCurlBuffer=$(mktemp -p "${GRAVITY_TMPDIR}" --suffix=".phgpb")
 
   # For all remote files, we try to determine if the file has changed to skip
