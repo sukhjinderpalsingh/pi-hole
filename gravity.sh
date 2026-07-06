@@ -187,7 +187,7 @@ database_table_from_file() {
   backup_path="${piholeDir}/migration_backup"
   backup_file="${backup_path}/$(basename "${2}")"
   # Create a temporary file with random filename with '.gravity' suffix.
-  # Cave: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine.
+  # Note: '--suffix' requires GNU mktemp (coreutils), which is not pre-installed on Alpine, but it is installed as Pi-hole dependency.
   tmpFile="$(mktemp -p "${GRAVITY_TMPDIR}" --suffix=".gravity")"
 
   local timestamp
